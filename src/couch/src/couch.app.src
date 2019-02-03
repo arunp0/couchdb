@@ -47,7 +47,10 @@
         couch_event,
         ioq,
         couch_stats,
-        hyper
+        hyper,
+
+        %s3 deps
+        erlcloud
     ]},
     {env, [
         { httpd_global_handlers, [

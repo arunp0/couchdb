@@ -577,14 +577,14 @@ commit_data(St) ->
 
 
 open_write_stream(#st{} = St, Options) ->
-    couch_stream:open({couch_bt_engine_stream, {St#st.fd, []}}, Options).
+    couch_stream:open({couch_bt_engine_stream_cloud, {St#st.fd, []}}, Options).
 
 
 open_read_stream(#st{} = St, StreamSt) ->
-    {ok, {couch_bt_engine_stream, {St#st.fd, StreamSt}}}.
+    {ok, {couch_bt_engine_stream_cloud, {St#st.fd, StreamSt}}}.
 
 
-is_active_stream(#st{} = St, {couch_bt_engine_stream, {Fd, _}}) ->
+is_active_stream(#st{} = St, {couch_bt_engine_stream_cloud, {Fd, _}}) ->
     St#st.fd == Fd;
 is_active_stream(_, _) ->
     false.

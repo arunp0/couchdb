@@ -12,6 +12,8 @@
 
 include version.mk
 
+export FORCE_REBAR2=true
+
 REBAR?=$(shell echo `pwd`/bin/rebar)
 
 # Handle the following scenarios:
