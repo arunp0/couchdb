@@ -30,7 +30,8 @@ deps() ->
         ibrowse,
         mochiweb,
         config,
-        couch_log
+        couch_log,
+        erlcloud
     ].
 
 
