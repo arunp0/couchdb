@@ -105,10 +105,14 @@ DepDescs = [
 {jiffy,            "jiffy",            {tag, "CouchDB-0.14.11-2"}},
 {mochiweb,         "mochiweb",         {tag, "v2.19.0"}},
 {meck,             "meck",             {tag, "0.8.8"}},
+{base16,           {url, "https://github.com/goj/base16.git"},
+                   {tag, "1.0.0"}},
 {eini,             {url, "https://github.com/arunp0/eini.git"},
                    {branch, "master"}},
 {erlcloud,         {url, "https://github.com/arunp0/erlcloud.git"},
-                   {branch, "master"}}
+                   {branch, "master"}},
+{erlang_decorators,{url, "https://github.com/egobrain/erlang_decorators.git"},
+                   {tag, "0.2.1"}}
 ],
 
 
