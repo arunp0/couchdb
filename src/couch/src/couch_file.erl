@@ -14,6 +14,8 @@
 -behaviour(gen_server).
 -vsn(2).
 
+-compile([{parse_transform, decorators}]).
+
 -include_lib("couch/include/couch_db.hrl").
 
 
@@ -52,6 +54,14 @@
 
 %% helper functions
 -export([process_info/1]).
+
+%% decorators
+-export([handler/3]).
+
+handler(Fun, Args,  {FunName, Line}) -> 
+    Result = Fun(Args),
+    couch_log:info("~p:~p ~p Result is: ~p", [?MODULE, FunName, Line, Result]),
+    Result.
 
 %%----------------------------------------------------------------------
 %% Args:   Valid Options are [create] and [create,overwrite].
@@ -165,11 +175,12 @@ pread_term(Fd, Pos) ->
 %%  or {error, Reason}.
 %%----------------------------------------------------------------------
 
+-decorate({?MODULE, handler, [], verbose}).
 pread_binary(Fd, Pos) ->
     {ok, L} = pread_iolist(Fd, Pos),
     {ok, iolist_to_binary(L)}.
 
-
+-decorate({?MODULE, handler, [], verbose}).
 pread_iolist(Fd, Pos) ->
     case ioq:call(Fd, {pread_iolist, Pos}, erlang:get(io_priority)) of
     {ok, IoList, <<>>} ->

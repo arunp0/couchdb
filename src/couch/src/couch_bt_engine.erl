@@ -13,6 +13,8 @@
 -module(couch_bt_engine).
 -behavior(couch_db_engine).
 
+-compile([{parse_transform, decorators}]).
+
 -export([
     exists/1,
 
@@ -110,6 +112,20 @@
     copy_security/2,
     copy_props/2
 ]).
+
+%% decorators
+-export([handler/3]).
+
+handler(Fun, Args,  {FunName, Line}) -> 
+    couch_log:info("~p:~p ~p called", [?MODULE, FunName, Line]),
+    case config:get_boolean("object_storage", "active", false) of
+        false -> 
+            Result = Fun(Args);
+        true ->
+            Result = erlang:apply(couch_bt_engine_cloud, FunName, Args)
+    end,
+    couch_log:info("~p:~p ~p Result is: ~p", [?MODULE, FunName, Line, Result]),
+    Result.
 
 
 -include_lib("couch/include/couch_db.hrl").
@@ -575,16 +591,18 @@ commit_data(St) ->
             {ok, St}
     end.
 
-
+-decorate({?MODULE, handler, [], verbose}).
 open_write_stream(#st{} = St, Options) ->
-    couch_stream:open({couch_bt_engine_stream_cloud, {St#st.fd, []}}, Options).
+    couch_stream:open({couch_bt_engine_stream, {St#st.fd, []}}, Options).
 
 
+-decorate({?MODULE, handler, [], verbose}).
 open_read_stream(#st{} = St, StreamSt) ->
-    {ok, {couch_bt_engine_stream_cloud, {St#st.fd, StreamSt}}}.
+    {ok, {couch_bt_engine_stream, {St#st.fd, StreamSt}}}.
 
 
-is_active_stream(#st{} = St, {couch_bt_engine_stream_cloud, {Fd, _}}) ->
+-decorate({?MODULE, handler, [], verbose}).
+is_active_stream(#st{} = St, {couch_bt_engine_stream, {Fd, _}}) ->
     St#st.fd == Fd;
 is_active_stream(_, _) ->
     false.

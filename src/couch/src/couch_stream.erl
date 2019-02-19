@@ -14,6 +14,7 @@
 -behaviour(gen_server).
 -vsn(1).
 
+-compile([{parse_transform, decorators}]).
 
 -export([
     open/1,
@@ -38,6 +39,20 @@
     handle_info/2,
     code_change/3
 ]).
+
+%% decorators
+-export([handler/3]).
+
+handler(Fun, Args,  {FunName, Line}) -> 
+    couch_log:info("~p:~p ~p called", [?MODULE, FunName, Line]),
+    case config:get_boolean("object_storage", "active", false) of
+        false -> 
+            Result = Fun(Args);
+        true ->
+            Result = erlang:apply(couch_stream_cloud, FunName, Args)
+    end,
+    couch_log:info("~p:~p ~p Result is: ~p", [?MODULE, FunName, Line, Result]),
+    Result.
 
 
 -include_lib("couch/include/couch_db.hrl").
@@ -90,11 +105,11 @@ write(Pid, Bin) ->
 to_disk_term({Engine, EngineState}) ->
     Engine:to_disk_term(EngineState).
 
-
+-decorate({?MODULE, handler, [], verbose}).
 foldl({Engine, EngineState}, Fun, Acc) ->
     Engine:foldl(EngineState, Fun, Acc).
 
-
+-decorate({?MODULE, handler, [], verbose}).
 foldl(Engine, <<>>, Fun, Acc) ->
     foldl(Engine, Fun, Acc);
 foldl(Engine, Md5, UserFun, UserAcc) ->

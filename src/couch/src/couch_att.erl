@@ -12,6 +12,8 @@
 
 -module(couch_att).
 
+-compile([{parse_transform, decorators}]).
+
 -export([
     new/0,
     new/1,
@@ -59,6 +61,15 @@
 -export_type([att/0]).
 
 -include_lib("couch/include/couch_db.hrl").
+
+%% decorators
+-export([handler/3]).
+
+handler(Fun, Args,  {FunName, Line}) -> 
+    couch_log:info("~p:~p ~p  Args is: ~p ", [?MODULE, FunName, Line, Args]),
+    Result = Fun(Args),
+    couch_log:info("~p:~p ~p  Result is: ~p", [?MODULE, FunName, Line, Result]),
+    Result.
 
 
 %% Legacy attachment record. This is going to be phased out by the new proplist
@@ -526,11 +537,11 @@ to_json(Att, OutputData, DataToFollow, ShowEncoding) ->
     end,
     {Name, {Props ++ DigestProp ++ DataProps ++ EncodingProps ++ HeadersProp}}.
 
-
+-decorate({?MODULE, handler, [], verbose}).
 flush(Db, Att) ->
     flush_data(Db, fetch(data, Att), Att).
 
-
+-decorate({?MODULE, handler, [], verbose}).
 flush_data(Db, Data, Att) when is_binary(Data) ->
     couch_db:with_stream(Db, Att, fun(OutputStream) ->
         couch_stream:write(OutputStream, Data)
@@ -616,16 +627,26 @@ write_streamed_attachment(Stream, F, LenLeft) when LenLeft > 0 ->
     ok = couch_stream:write(Stream, Bin),
     write_streamed_attachment(Stream, F, LenLeft - iolist_size(Bin)).
 
+
+get_chunk_length() ->
+    ChunkLength = case config:get_boolean("object_storage", "active", false) of
+        false ->
+            16#2000;
+        true ->
+            16#500000
+    end,
+    ChunkLength.
+
 read_next_chunk(F, _) when is_function(F, 0) ->
     F();
 read_next_chunk(F, LenLeft) when is_function(F, 1) ->
-    F(lists:min([LenLeft, 16#2000])).
+    F(lists:min([LenLeft, get_chunk_length()])).
 
-
+-decorate({?MODULE, handler, [], verbose}).
 foldl(Att, Fun, Acc) ->
     foldl(fetch(data, Att), Att, Fun, Acc).
 
-
+-decorate({?MODULE, handler, [], verbose}).
 foldl(Bin, _Att, Fun, Acc) when is_binary(Bin) ->
     Fun(Bin, Acc);
 foldl({stream, StreamEngine}, Att, Fun, Acc) ->
@@ -668,11 +689,11 @@ foldl_decode(Att, Fun, Acc) ->
             fold_streamed_data(Fun2, fetch(att_len, Att), Fun, Acc)
     end.
 
-
+-decorate({?MODULE, handler, [], verbose}).
 to_binary(Att) ->
     to_binary(fetch(data, Att), Att).
 
-
+-decorate({?MODULE, handler, [], verbose}).
 to_binary(Bin, _Att) when is_binary(Bin) ->
     Bin;
 to_binary(Iolist, _Att) when is_list(Iolist) ->
