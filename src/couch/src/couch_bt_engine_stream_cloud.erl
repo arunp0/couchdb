@@ -25,7 +25,7 @@
 ]).
 
 -define(DEFAULT_FD_SEPERATOR, "##").
--define(SIZE_BLOCK, 32768). % 32 KiB
+-define(SIZE_BLOCK, 5242880). % 5 MiB
 
 -include("erlcloud/include/erlcloud_aws.hrl").
 
@@ -49,24 +49,34 @@ start_multipart(Bucket, Key)->
     couch_log:info("~p called ~p ~p ~p", [?MODULE, Bucket, Key, UploadId]),
     binary_to_list(list_to_binary([Bucket, ?DEFAULT_FD_SEPERATOR , Key, ?DEFAULT_FD_SEPERATOR, UploadId])).
 
+
+-decorate({?MODULE, handler, [], verbose}).
+read_binary(Pos) ->
+    couch_log:info("read ~p",[Pos]),
+    Config = get_config(),
+    [Bucket, Key, _Pos] = string:tokens(Pos, ?DEFAULT_FD_SEPERATOR),
+    _Pos1 = list_to_integer(_Pos),
+    StartByte = integer_to_list((_Pos1-1)*?SIZE_BLOCK),
+    EndByte = integer_to_list(_Pos1*?SIZE_BLOCK),
+    Range = "bytes=" ++ StartByte ++ "-" ++ EndByte,
+    Options = [{range, Range}],
+    Body = erlcloud_s3:get_object(Bucket, Key, Options, Config),
+    proplists:get_value(content, Body).
+
 -decorate({?MODULE, handler, [], verbose}).
 foldl({_Fd, []}, _Fun, Acc) ->
-    couch_log:info("111111111 ~p",[_Fd]),
     Acc;
 
 foldl({Fd, [{Pos, _} | Rest]}, Fun, Acc) ->
-    couch_log:info("222222222 ~p",[Pos]),
     foldl({Fd, [Pos | Rest]}, Fun, Acc);
 
 foldl({Fd, [Bin | Rest]}, Fun, Acc) when is_binary(Bin) ->
     % We're processing the first bit of data
     % after we did a seek for a range fold.
-    couch_log:info("333333333 ~p",[Bin]),
     foldl({Fd, Rest}, Fun, Fun(Bin, Acc));
 
-foldl({Fd, [Pos | Rest]}, Fun, Acc) when is_integer(Pos) ->
-    couch_log:info("444444444 ~p",[Pos]),
-    {ok, Bin} = couch_file:pread_binary(Fd, Pos),
+foldl({Fd, [Pos | Rest]}, Fun, Acc) when is_list(Pos) ->
+    Bin = read_binary(Pos),
     foldl({Fd, Rest}, Fun, Fun(Bin, Acc)).
 
 
@@ -79,9 +89,8 @@ seek({Fd, [{Pos, Length} | Rest]}, Offset) ->
             seek({Fd, [Pos | Rest]}, Offset)
     end;
 
--decorate({?MODULE, handler, [], verbose}).
-seek({Fd, [Pos | Rest]}, Offset) when is_integer(Pos) ->
-    {ok, Bin} = couch_file:pread_binary(Fd, Pos),
+seek({Fd, [Pos | Rest]}, Offset) when is_list(Pos) ->
+    Bin = read_binary(Pos),
     case iolist_size(Bin) =< Offset of
         true ->
             seek({Fd, Rest}, Offset - size(Bin));
@@ -108,19 +117,17 @@ finalize({Fd, Written}) ->
     [Bucket, Key, UploadId] = string:tokens(Fd, ?DEFAULT_FD_SEPERATOR),
     ETags = lists:reverse(Written),
     erlcloud_s3:complete_multipart(Bucket, Key, UploadId, ETags, [], Config), 
-    {ok, {Fd, lists:reverse(Written)}}.
-
-
--decorate({?MODULE, handler, [], verbose}).
-to_disk_term({_Fd, _}) ->
-    Config = get_config(),
-    [Bucket, Key, _] = string:tokens(_Fd, ?DEFAULT_FD_SEPERATOR),
     MetaData = erlcloud_s3:get_object_metadata(Bucket, Key, Config),
     {ContentLength, _} = string:to_integer(proplists:get_value(content_length, MetaData)),
     DiskTermSize = (ContentLength div ?SIZE_BLOCK) + 1,
-    Fd = binary_to_list(list_to_binary([Bucket, ?DEFAULT_FD_SEPERATOR , Key])),
-    Written1 = [{H, Fd} || H <- lists:seq(1, DiskTermSize)],
-    {ok, Written1}.
+    _Fd = binary_to_list(list_to_binary([Bucket, ?DEFAULT_FD_SEPERATOR , Key])),
+    Written1 = [{_Fd ++ ?DEFAULT_FD_SEPERATOR ++ integer_to_list(H), H} || H <- lists:seq(1, DiskTermSize)],
+    {ok, {Fd, Written1}}.
+
+
+-decorate({?MODULE, handler, [], verbose}).
+to_disk_term({_Fd, Written}) ->
+    {ok, Written}.
 
 
 -decorate({?MODULE, handler, [], verbose}).

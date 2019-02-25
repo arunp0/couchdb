@@ -70,7 +70,6 @@ seek({Fd, [{Pos, Length} | Rest]}, Offset) ->
             seek({Fd, [Pos | Rest]}, Offset)
     end;
 
--decorate({?MODULE, handler, [], verbose}).
 seek({Fd, [Pos | Rest]}, Offset) when is_integer(Pos) ->
     {ok, Bin} = couch_file:pread_binary(Fd, Pos),
     case iolist_size(Bin) =< Offset of
