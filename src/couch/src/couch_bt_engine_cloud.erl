@@ -26,9 +26,9 @@
 -export([handler/3]).
 
 handler(Fun, Args,  {FunName, Line}) -> 
-    couch_log:info("~p:~p ~p called", [?MODULE, FunName, Line]),
+    couch_log:debug("~p:~p ~p called", [?MODULE, FunName, Line]),
     Result = Fun(Args),
-    couch_log:info("~p:~p ~p  Result is: ~p", [?MODULE, FunName, Line, Result]),
+    couch_log:debug("~p:~p ~p  Result is: ~p", [?MODULE, FunName, Line, Result]),
     Result.
 
 get_dbname(FilePath) -> 

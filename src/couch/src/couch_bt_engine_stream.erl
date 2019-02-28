@@ -27,14 +27,12 @@
 -export([handler/3]).
 
 handler(Fun, Args,  {FunName, Line}) -> 
-    couch_log:info("~p:~p ~p called ~p", [?MODULE, FunName, Line, config:get_boolean("object_storage", "active", false)]),
     case config:get_boolean("object_storage", "active", false) of
         false -> 
             Result = Fun(Args);
         true ->
             Result = erlang:apply(couch_bt_engine_stream_cloud, FunName, Args)
     end,
-    couch_log:info("~p:~p ~p Result is: ~p", [?MODULE, FunName, Line, Result]),
     Result.
 
 -decorate({?MODULE, handler, [], verbose}).
@@ -43,21 +41,17 @@ start_multipart(_, _)->
 
 -decorate({?MODULE, handler, [], verbose}).
 foldl({_Fd, []}, _Fun, Acc) ->
-    couch_log:info("111111111 ~p",[_Fd]),
     Acc;
 
 foldl({Fd, [{Pos, _} | Rest]}, Fun, Acc) ->
-    couch_log:info("222222222 ~p",[Pos]),
     foldl({Fd, [Pos | Rest]}, Fun, Acc);
 
 foldl({Fd, [Bin | Rest]}, Fun, Acc) when is_binary(Bin) ->
     % We're processing the first bit of data
     % after we did a seek for a range fold.
-    couch_log:info("333333333333 ~p",[Bin]),
     foldl({Fd, Rest}, Fun, Fun(Bin, Acc));
 
 foldl({Fd, [Pos | Rest]}, Fun, Acc) when is_integer(Pos) ->
-    couch_log:info("44444444444 ~p",[Pos]),
     {ok, Bin} = couch_file:pread_binary(Fd, Pos),
     foldl({Fd, Rest}, Fun, Fun(Bin, Acc)).
 
