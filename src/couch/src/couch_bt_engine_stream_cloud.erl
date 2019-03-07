@@ -32,14 +32,17 @@
 %% decorators
 -export([handler/3]).
 
+
 handler(Fun, Args,  {FunName, Line}) -> 
-    couch_log:info("~p:~p ~p  Args is: ~p ~n ~n", [?MODULE, FunName, Line, Args]),
+    couch_log:debug("~p:~p ~p  Args is: ~p ~n ~n", [?MODULE, FunName, Line, Args]),
     Result = Fun(Args),
-    couch_log:info("~p:~p ~p  Result is: ~p ~n ~n", [?MODULE, FunName, Line, Result]),
+    couch_log:debug("~p:~p ~p  Result is: ~p ~n ~n", [?MODULE, FunName, Line, Result]),
     Result.
+
 
 get_config() ->
     {ok, Config} = erlcloud_aws:profile(),
+
 
 -decorate({?MODULE, handler, [], verbose}).
 start_multipart(Bucket, Key)->
@@ -52,16 +55,13 @@ start_multipart(Bucket, Key)->
 
 -decorate({?MODULE, handler, [], verbose}).
 read_binary(Pos) ->
-    couch_log:info("read ~p",[Pos]),
     Config = get_config(),
-    [Bucket, Key, _Pos] = string:tokens(Pos, ?DEFAULT_FD_SEPERATOR),
-    _Pos1 = list_to_integer(_Pos),
-    StartByte = integer_to_list((_Pos1-1)*?SIZE_BLOCK),
-    EndByte = integer_to_list(_Pos1*?SIZE_BLOCK),
+    [Bucket, Key, StartByte, EndByte] = string:tokens(Pos, ?DEFAULT_FD_SEPERATOR),
     Range = "bytes=" ++ StartByte ++ "-" ++ EndByte,
     Options = [{range, Range}],
     Body = erlcloud_s3:get_object(Bucket, Key, Options, Config),
     proplists:get_value(content, Body).
+
 
 -decorate({?MODULE, handler, [], verbose}).
 foldl({_Fd, []}, _Fun, Acc) ->
@@ -111,6 +111,19 @@ write({Fd, Written}, Data) ->
     {ok, {Fd, [PartData | Written]}}.
 
 
+get_disk_term(Fd, DiskTermSize, ContentLength) -> 
+    _Fd = Fd ++ ?DEFAULT_FD_SEPERATOR,
+    Written1 = [{_Fd ++ integer_to_list((H-1)*?SIZE_BLOCK) ++ ?DEFAULT_FD_SEPERATOR 
+        ++ integer_to_list((H*?SIZE_BLOCK)-1), ?SIZE_BLOCK} || H <- lists:seq(1, DiskTermSize)],
+    Left = ContentLength - (DiskTermSize * ?SIZE_BLOCK),
+    Written2 = case Left of
+        0 -> Written1;
+        _ -> Written1 ++ [{_Fd ++ integer_to_list(DiskTermSize*?SIZE_BLOCK) ++ ?DEFAULT_FD_SEPERATOR 
+                ++ integer_to_list(ContentLength-1), ?SIZE_BLOCK}]
+        end,
+    Written2.
+
+
 -decorate({?MODULE, handler, [], verbose}).
 finalize({Fd, Written}) ->
     Config = get_config(),
@@ -119,9 +132,9 @@ finalize({Fd, Written}) ->
     erlcloud_s3:complete_multipart(Bucket, Key, UploadId, ETags, [], Config), 
     MetaData = erlcloud_s3:get_object_metadata(Bucket, Key, Config),
     {ContentLength, _} = string:to_integer(proplists:get_value(content_length, MetaData)),
-    DiskTermSize = (ContentLength div ?SIZE_BLOCK) + 1,
+    DiskTermSize = (ContentLength div ?SIZE_BLOCK),
     _Fd = binary_to_list(list_to_binary([Bucket, ?DEFAULT_FD_SEPERATOR , Key])),
-    Written1 = [{_Fd ++ ?DEFAULT_FD_SEPERATOR ++ integer_to_list(H), H} || H <- lists:seq(1, DiskTermSize)],
+    Written1 = get_disk_term(_Fd, DiskTermSize, ContentLength),
     {ok, {Fd, Written1}}.
 
 

@@ -60,7 +60,7 @@
 
 handler(Fun, Args,  {FunName, Line}) -> 
     Result = Fun(Args),
-    couch_log:info("~p:~p ~p Result is: ~p", [?MODULE, FunName, Line, Result]),
+    couch_log:debug("~p:~p ~p Result is: ~p", [?MODULE, FunName, Line, Result]),
     Result.
 
 %%----------------------------------------------------------------------

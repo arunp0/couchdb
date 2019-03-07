@@ -66,9 +66,9 @@
 -export([handler/3]).
 
 handler(Fun, Args,  {FunName, Line}) -> 
-    couch_log:info("~p:~p ~p  Args is: ~p ", [?MODULE, FunName, Line, Args]),
+    couch_log:debug("~p:~p ~p  Args is: ~p ", [?MODULE, FunName, Line, Args]),
     Result = Fun(Args),
-    couch_log:info("~p:~p ~p  Result is: ~p", [?MODULE, FunName, Line, Result]),
+    couch_log:debug("~p:~p ~p  Result is: ~p", [?MODULE, FunName, Line, Result]),
     Result.
 
 

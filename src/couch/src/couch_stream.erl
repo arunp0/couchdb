@@ -44,14 +44,14 @@
 -export([handler/3]).
 
 handler(Fun, Args,  {FunName, Line}) -> 
-    couch_log:info("~p:~p ~p called", [?MODULE, FunName, Line]),
+    couch_log:debug("~p:~p ~p called", [?MODULE, FunName, Line]),
     case config:get_boolean("object_storage", "active", false) of
         false -> 
             Result = Fun(Args);
         true ->
             Result = erlang:apply(couch_stream_cloud, FunName, Args)
     end,
-    couch_log:info("~p:~p ~p Result is: ~p", [?MODULE, FunName, Line, Result]),
+    couch_log:debug("~p:~p ~p Result is: ~p", [?MODULE, FunName, Line, Result]),
     Result.
 
 
